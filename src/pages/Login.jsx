@@ -31,7 +31,7 @@ export default function Login() {
         className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-8 w-96"
       >
         <h2 className="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-100">
-          Login to RBProgressTracker
+          Login
         </h2>
 
         {error && (

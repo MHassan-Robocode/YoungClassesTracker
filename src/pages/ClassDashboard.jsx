@@ -8,7 +8,6 @@ import {
   doc,
 } from "firebase/firestore";
 import { db } from "../firebase";
-import Sidebar from "../components/Sidebar";
 import Navbar from "../components/Navbar";
 import { useAuth } from "../context/AuthContext";
 
@@ -77,106 +76,102 @@ export default function ClassDashboard() {
   };
 
   return (
-    <div className="flex bg-gray-50 dark:bg-gray-950 min-h-screen">
-      <Sidebar />
-      <div className="flex-1 flex flex-col">
-        <Navbar title="Teacher Dashboard" />
-        <main className="p-6 text-gray-800 dark:text-gray-100">
-          <h2 className="text-2xl font-semibold mb-6">👩‍🏫 My Classes</h2>
+    <div className="min-h-screen bg-gray-50">
+      <Navbar title="Teacher Dashboard" />
 
-          {teacherClasses.length === 0 ? (
-            <p className="text-gray-500">No classes assigned yet.</p>
-          ) : (
-            <div className="space-y-6">
-              {teacherClasses.map((c) => (
+      <main className="max-w-5xl mx-auto p-6 text-gray-800">
+        <h2 className="text-2xl font-semibold mb-6">👩‍🏫 My Classes</h2>
+
+        {teacherClasses.length === 0 ? (
+          <p className="text-gray-500">No classes assigned yet.</p>
+        ) : (
+          <div className="space-y-6">
+            {teacherClasses.map((c) => (
+              <div
+                key={c.id}
+                className="border rounded-xl p-5 shadow-sm bg-white transition-all"
+              >
+                {/* Class Header */}
                 <div
-                  key={c.id}
-                  className="border rounded-xl p-5 shadow-sm dark:border-gray-700 bg-white dark:bg-gray-900 transition-all"
+                  className="flex justify-between items-center cursor-pointer"
+                  onClick={() => toggleClass(c.id)}
                 >
-                  {/* Class Header */}
-                  <div
-                    className="flex justify-between items-center cursor-pointer"
-                    onClick={() => toggleClass(c.id)}
-                  >
-                    <div>
-                      <h3 className="text-xl font-semibold">{c.name}</h3>
-                      <p className="text-sm text-gray-500">
-                        {c.day} {c.time}
-                      </p>
-                    </div>
-                    <button
-                      className="px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-                    >
-                      {openClass === c.id ? "Hide Students ▲" : "View Students ▼"}
-                    </button>
+                  <div>
+                    <h3 className="text-xl font-semibold">{c.name}</h3>
+                    <p className="text-sm text-gray-500">
+                      {c.day} {c.time}
+                    </p>
                   </div>
+                  <button className="px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">
+                    {openClass === c.id ? "Hide Students ▲" : "View Students ▼"}
+                  </button>
+                </div>
 
-                  {/* Expand Students */}
-                  {openClass === c.id && (
-                    <div className="mt-5 border-t pt-4 space-y-4">
-                      <h4 className="text-lg font-semibold mb-2">Students</h4>
-                      {(students[c.id] || []).length === 0 ? (
-                        <p className="text-gray-500">No students yet.</p>
-                      ) : (
-                        <div className="space-y-5">
-                          {students[c.id].map((s) => {
-                            const progress = calcProgress(s.projectsCompleted);
-                            return (
-                              <div
-                                key={s.id}
-                                className="border rounded-lg p-4 dark:border-gray-700 bg-gray-50 dark:bg-gray-800"
-                              >
-                                <div className="flex justify-between items-center mb-3">
-                                  <div>
-                                    <h5 className="font-semibold">{s.name}</h5>
-                                    <p className="text-xs text-gray-400">
-                                      {progress}% complete
-                                    </p>
-                                  </div>
-                                  <div className="w-32 bg-gray-300 dark:bg-gray-700 rounded-full h-2">
-                                    <div
-                                      className="bg-green-500 h-2 rounded-full"
-                                      style={{ width: `${progress}%` }}
-                                    ></div>
-                                  </div>
+                {/* Expand Students */}
+                {openClass === c.id && (
+                  <div className="mt-5 border-t pt-4 space-y-4">
+                    <h4 className="text-lg font-semibold mb-2">Students</h4>
+                    {(students[c.id] || []).length === 0 ? (
+                      <p className="text-gray-500">No students yet.</p>
+                    ) : (
+                      <div className="space-y-5">
+                        {students[c.id].map((s) => {
+                          const progress = calcProgress(s.projectsCompleted);
+                          return (
+                            <div
+                              key={s.id}
+                              className="border rounded-lg p-4 bg-gray-50"
+                            >
+                              <div className="flex justify-between items-center mb-3">
+                                <div>
+                                  <h5 className="font-semibold">{s.name}</h5>
+                                  <p className="text-xs text-gray-400">
+                                    {progress}% complete
+                                  </p>
                                 </div>
-
-                                {/* Projects Grid */}
-                                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                                  {[...Array(10)].map((_, i) => {
-                                    const num = i + 1;
-                                    const isDone =
-                                      s.projectsCompleted?.includes(num);
-                                    return (
-                                      <div
-                                        key={num}
-                                        onClick={() =>
-                                          toggleProject(c.id, s.id, num)
-                                        }
-                                        className={`p-2 text-center rounded border cursor-pointer transition-all ${
-                                          isDone
-                                            ? "bg-green-500 text-white border-green-600"
-                                            : "bg-gray-100 dark:bg-gray-900 dark:border-gray-600"
-                                        }`}
-                                      >
-                                        {isDone ? `✅ ${num}` : `⬜ ${num}`}
-                                      </div>
-                                    );
-                                  })}
+                                <div className="w-32 bg-gray-300 rounded-full h-2">
+                                  <div
+                                    className="bg-green-500 h-2 rounded-full"
+                                    style={{ width: `${progress}%` }}
+                                  ></div>
                                 </div>
                               </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </main>
-      </div>
+
+                              {/* Projects Grid */}
+                              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                                {[...Array(10)].map((_, i) => {
+                                  const num = i + 1;
+                                  const isDone =
+                                    s.projectsCompleted?.includes(num);
+                                  return (
+                                    <div
+                                      key={num}
+                                      onClick={() =>
+                                        toggleProject(c.id, s.id, num)
+                                      }
+                                      className={`p-2 text-center rounded border cursor-pointer transition-all ${
+                                        isDone
+                                          ? "bg-green-500 text-white border-green-600"
+                                          : "bg-gray-100 hover:bg-gray-200"
+                                      }`}
+                                    >
+                                      {isDone ? `✅ ${num}` : `⬜ ${num}`}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </main>
     </div>
   );
 }
