@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
-import { collection, getDocs, addDoc } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  addDoc,
+  deleteDoc,
+  doc,
+} from "firebase/firestore";
 import { db } from "../firebase";
 import Navbar from "../components/Navbar";
 
@@ -9,6 +15,10 @@ export default function AdminDashboard() {
   const [classes, setClasses] = useState([]);
   const [studentsByClass, setStudentsByClass] = useState({});
   const [openClass, setOpenClass] = useState(null);
+  const [allStudents, setAllStudents] = useState([]);
+  const [transferModal, setTransferModal] = useState(null);
+  const [newClassId, setNewClassId] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
 
   const [newTeacher, setNewTeacher] = useState({ name: "", email: "" });
   const [newClass, setNewClass] = useState({
@@ -19,7 +29,6 @@ export default function AdminDashboard() {
   });
   const [newStudent, setNewStudent] = useState({ name: "", classId: "" });
 
-  // 🔍 Filter states
   const [filterTeacher, setFilterTeacher] = useState("");
   const [filterDay, setFilterDay] = useState("");
   const [filterClass, setFilterClass] = useState("");
@@ -56,6 +65,22 @@ export default function AdminDashboard() {
     }));
     setStudentsByClass((prev) => ({ ...prev, [classId]: studentsList }));
   };
+
+const loadAllStudents = async () => {
+  const promises = classes.map(async (c) => {
+    const snap = await getDocs(collection(db, "classes", c.id, "students"));
+    return snap.docs.map((docSnap) => ({
+      ...docSnap.data(),
+      id: docSnap.id,
+      classId: c.id,
+      className: c.name,
+    }));
+  });
+
+  const results = await Promise.all(promises);
+  const all = results.flat();
+  setAllStudents(all);
+};
 
   // Add Teacher
   const handleAddTeacher = async (e) => {
@@ -100,7 +125,40 @@ export default function AdminDashboard() {
     setNewStudent({ name: "", classId: "" });
   };
 
-  // 🧠 Filtered classes
+  // Remove Student
+  const handleRemoveStudent = async (classId, studentId) => {
+    if (!window.confirm("Are you sure you want to remove this student?")) return;
+    await deleteDoc(doc(db, "classes", classId, "students", studentId));
+    alert("Student removed.");
+    loadAllStudents();
+  };
+
+  // Transfer Student
+  const handleTransferStudent = async () => {
+    if (!newClassId || !transferModal) return alert("Select a new class.");
+    const { student, fromClassId } = transferModal;
+
+    const newRef = collection(db, "classes", newClassId, "students");
+    await addDoc(newRef, {
+      name: student.name,
+      projectsCompleted: student.projectsCompleted || [],
+    });
+
+    await deleteDoc(doc(db, "classes", fromClassId, "students", student.id));
+
+    alert("Student transferred successfully!");
+    setTransferModal(null);
+    setNewClassId("");
+    loadAllStudents();
+  };
+
+  const filteredStudents = allStudents.filter(
+    (s) =>
+      s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.className.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Filters for Classes tab
   const filteredClasses = classes.filter((c) => {
     const matchTeacher = !filterTeacher || c.teacherEmail === filterTeacher;
     const matchDay = !filterDay || c.day === filterDay;
@@ -121,7 +179,7 @@ export default function AdminDashboard() {
       <Navbar title="Admin Dashboard" />
 
       <main className="max-w-6xl mx-auto p-6">
-        {/* Tab Navigation */}
+        {/* Tabs */}
         <div className="flex space-x-4 mb-8 border-b pb-2">
           <button
             onClick={() => setTab("dashboard")}
@@ -143,12 +201,25 @@ export default function AdminDashboard() {
           >
             Classes
           </button>
+          <button
+            onClick={() => {
+              setTab("students");
+              loadAllStudents();
+            }}
+            className={`px-4 py-2 rounded-t-md font-medium ${
+              tab === "students"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-200 text-gray-700"
+            }`}
+          >
+            Students
+          </button>
         </div>
 
         {/* ===== DASHBOARD TAB ===== */}
         {tab === "dashboard" && (
           <>
-            {/* ADD TEACHER */}
+            {/* Add Teacher */}
             <form
               onSubmit={handleAddTeacher}
               className="mb-6 p-4 bg-white border rounded-lg shadow-sm"
@@ -182,7 +253,7 @@ export default function AdminDashboard() {
               </div>
             </form>
 
-            {/* ADD CLASS */}
+            {/* Add Class */}
             <form
               onSubmit={handleAddClass}
               className="mb-6 p-4 bg-white border rounded-lg shadow-sm"
@@ -241,7 +312,7 @@ export default function AdminDashboard() {
               </div>
             </form>
 
-            {/* ADD STUDENT */}
+            {/* Add Student */}
             <form
               onSubmit={handleAddStudent}
               className="mb-6 p-4 bg-white border rounded-lg shadow-sm"
@@ -287,7 +358,7 @@ export default function AdminDashboard() {
           <div className="bg-white border rounded-lg shadow-sm p-4">
             <h3 className="font-semibold mb-4 text-lg">All Classes</h3>
 
-            {/* FILTER BAR */}
+            {/* Filter bar */}
             <div className="flex flex-col sm:flex-row gap-3 mb-5">
               <select
                 className="border p-2 rounded w-full sm:w-1/4"
@@ -387,7 +458,9 @@ export default function AdminDashboard() {
                                         : "bg-gray-100 text-gray-600"
                                     }`}
                                   >
-                                    {isDone ? `✅ ${projectNum}` : `${projectNum}`}
+                                    {isDone
+                                      ? `✅ ${projectNum}`
+                                      : `${projectNum}`}
                                   </div>
                                 );
                               })}
@@ -400,6 +473,104 @@ export default function AdminDashboard() {
                 </div>
               ))
             )}
+          </div>
+        )}
+
+        {/* ===== STUDENTS TAB ===== */}
+        {tab === "students" && (
+          <div className="bg-white border rounded-lg shadow-sm p-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-semibold text-lg">All Students</h3>
+              <input
+                type="text"
+                placeholder="🔍 Search by name or class..."
+                className="border p-2 rounded w-64"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+
+            {filteredStudents.length === 0 ? (
+              <p className="text-gray-500">No students found.</p>
+            ) : (
+              <table className="w-full border text-left">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="p-2 border">Name</th>
+                    <th className="p-2 border">Class</th>
+                    <th className="p-2 border">Progress</th>
+                    <th className="p-2 border">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredStudents.map((s) => (
+                    <tr key={s.id}>
+                      <td className="p-2 border">{s.name}</td>
+                      <td className="p-2 border">{s.className}</td>
+                      <td className="p-2 border">
+                        {(s.projectsCompleted?.length || 0)}/10
+                      </td>
+                      <td className="p-2 border space-x-2">
+                        <button
+                          onClick={() => handleRemoveStudent(s.classId, s.id)}
+                          className="px-2 py-1 bg-red-500 text-white rounded text-sm"
+                        >
+                          Remove
+                        </button>
+                        <button
+                          onClick={() =>
+                            setTransferModal({
+                              student: s,
+                              fromClassId: s.classId,
+                            })
+                          }
+                          className="px-2 py-1 bg-yellow-500 text-white rounded text-sm"
+                        >
+                          Transfer
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+
+        {/* ===== TRANSFER MODAL ===== */}
+        {transferModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-lg shadow-lg w-96">
+              <h3 className="text-lg font-semibold mb-3">
+                Transfer {transferModal.student.name}
+              </h3>
+              <select
+                value={newClassId}
+                onChange={(e) => setNewClassId(e.target.value)}
+                className="border p-2 rounded w-full mb-4"
+              >
+                <option value="">Select new class</option>
+                {classes.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => setTransferModal(null)}
+                  className="px-3 py-2 bg-gray-300 rounded"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleTransferStudent}
+                  className="px-3 py-2 bg-blue-600 text-white rounded"
+                >
+                  Transfer
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </main>
